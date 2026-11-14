@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dank Recovery</title>
+<meta name="description" content="Dank Recovery: sponsoring you since 2015. The podcast, the press and the shop.">
+<link rel="canonical" href="https://dankrecovery.com/">
+<link rel="icon" href="/logo.jpg">
+<meta property="og:title" content="Dank Recovery">
+<meta property="og:description" content="Sponsoring you since 2015. The podcast, the press and the shop.">
+<meta property="og:image" content="https://dankrecovery.com/logo.jpg">
+<meta property="og:url" content="https://dankrecovery.com/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Layout idea: one left-aligned column like a photocopied meeting flyer; ruled sections, stamped labels, a coin seal in the header. Single dark theme by choice. */
+  :root {
+    color-scheme: dark;
+    --ink: #0d0c0b;
+    --panel: #171513;
+    --bone: #ece4d2;
+    --ash: #a39c8c;
+    --rule: #37322b;
+    --brass: #c9a24a;
+    --ghost-a: #e0483c;
+    --ghost-b: #35b8c4;
+    --display: "Alfa Slab One", "Rockwell", "Georgia", serif;
+    --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--bone);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.55;
+  }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 20px 0; border-bottom: 1px solid var(--rule);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .seal {
+    width: 64px; height: 64px; flex: none; border-radius: 50%; display: block; object-fit: cover;
+  }
+  .brand-name { font-family: var(--display); font-size: 18px; letter-spacing: .04em; line-height: 1.1; }
+  .brand-est { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; color: var(--ash); }
+  nav.top-nav { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 13px; }
+  nav.top-nav a { text-decoration: none; color: var(--ash); padding: 6px 0; }
+  nav.top-nav a:hover { color: var(--bone); }
+
+  .hero { padding: 44px 0 40px; border-bottom: 1px solid var(--rule); }
+  h1 {
+    font-family: var(--display); font-weight: 400;
+    font-size: clamp(40px, 11vw, 78px); line-height: .98; letter-spacing: .01em;
+    margin: 0 0 18px; text-wrap: balance; text-transform: uppercase;
+    text-shadow: -2px 0 0 var(--ghost-a), 2px 0 0 var(--ghost-b);
+  }
+  .lede { max-width: 34em; margin: 0 0 26px; color: var(--bone); }
+  .lede b { font-weight: 600; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-block; text-decoration: none; font-family: var(--mono); font-weight: 500;
+    font-size: 14px; letter-spacing: .08em; text-transform: uppercase;
+    padding: 14px 20px; border: 2px solid var(--bone);
+  }
+  .btn.primary { background: var(--bone); color: var(--ink); }
+  .btn.primary:hover { background: var(--brass); border-color: var(--brass); }
+  .btn:hover { border-color: var(--brass); color: var(--brass); }
+  .btn.primary:hover { color: var(--ink); }
+
+  section { padding: 38px 0; border-bottom: 1px solid var(--rule); }
+  .label {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--brass); margin: 0 0 10px;
+  }
+  h2 {
+    font-family: var(--display); font-weight: 400; font-size: clamp(26px, 6.5vw, 36px);
+    line-height: 1.08; margin: 0 0 12px; text-wrap: balance;
+  }
+  section p { max-width: 36em; margin: 0 0 18px; }
+  .muted { color: var(--ash); }
+  .tag {
+    display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase; border: 1px solid var(--brass); color: var(--brass);
+    padding: 3px 8px; margin-left: 8px; vertical-align: middle; transform: rotate(-2deg);
+  }
+  .address {
+    font-family: var(--mono); font-size: 15px; background: var(--panel);
+    border: 1px solid var(--rule); padding: 12px 14px; display: inline-block; word-break: break-all;
+  }
+
+  ul.links { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+  ul.links li { border-top: 1px solid var(--rule); }
+  ul.links li:last-child { border-bottom: 1px solid var(--rule); }
+  ul.links a {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+    padding: 13px 2px; text-decoration: none;
+  }
+  ul.links a:hover .name { color: var(--brass); }
+  ul.links .name { font-weight: 500; }
+  ul.links .meta { font-family: var(--mono); font-size: 12px; color: var(--ash); text-align: right; flex: none; }
+  .cols { display: grid; gap: 30px; grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .cols { grid-template-columns: 1fr 1fr; } }
+  h3 { font-family: var(--mono); font-weight: 500; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--ash); margin: 0 0 8px; }
+
+  .help { background: var(--panel); border: 1px solid var(--rule); padding: 22px 20px; }
+  .help h2 { font-size: clamp(22px, 5.5vw, 28px); }
+
+  footer { padding: 30px 0 46px; }
+  .social { display: flex; flex-wrap: wrap; gap: 8px 20px; font-family: var(--mono); font-size: 14px; margin-bottom: 18px; }
+  .social a { text-decoration: none; border-bottom: 1px solid var(--rule); padding-bottom: 2px; }
+  .social a:hover { color: var(--brass); border-color: var(--brass); }
+  .fine { font-family: var(--mono); font-size: 12px; color: var(--ash); margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <a class="brand" href="#top" aria-label="Dank Recovery home">
+      <img class="seal" src="/logo.jpg" width="64" height="64" alt="Dank Recovery seal">
+      <span>
+        <span class="brand-name">DANK RECOVERY</span><br>
+        <span class="brand-est">EST. 2015</span>
+      </span>
+    </a>
+    <nav class="top-nav" aria-label="Sections">
+      <a href="#shop">Shop</a>
+      <a href="#podcast">Podcast</a>
+      <a href="#press">Press</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <div class="hero">
+      <h1>Sponsoring you since 2015</h1>
+      <p class="lede">Dank Recovery is where <b>693,000 people</b> in and around recovery come to laugh at the stuff nobody else gets. Posts, a podcast, and now shirts.</p>
+      <div class="actions">
+        <a class="btn primary" href="/shop/">Shop the shirts</a>
+        <a class="btn" href="https://www.youtube.com/dankrecovery">Watch the podcast</a>
+      </div>
+    </div>
+
+    <section id="shop">
+      <p class="label">Shop</p>
+      <h2>Shirts for people who get the joke <span class="tag">Opening soon</span></h2>
+      <p>The jokes you already send your sponsor, printed on shirts. Made to order and shipped to your door.</p>
+      <a class="btn" href="/shop/">Go to the shop</a>
+    </section>
+
+    <section id="podcast">
+      <p class="label">Podcast</p>
+      <h2>The Dank Recovery podcast</h2>
+      <p>Conversations about recovery and everything that's funny about it. Full episodes and clips are on YouTube.</p>
+      <a class="btn" href="https://www.youtube.com/dankrecovery">Watch on YouTube</a>
+    </section>
+
+    <section id="newsletter">
+      <p class="label">Newsletter</p>
+      <h2>Get it in your inbox</h2>
+      <p>Social platforms can delete an account overnight. Email can't be taken away. To join the list, send an email with the subject <b>Newsletter</b> to:</p>
+      <p><a class="address" href="mailto:timothy@dankrecovery.com?subject=Newsletter">timothy@dankrecovery.com</a></p>
+    </section>
+
+    <section id="press">
+      <p class="label">Press</p>
+      <h2>As covered in</h2>
+      <div class="cols">
+        <div>
+          <h3>Articles</h3>
+          <ul class="links">
+            <li><a href="https://www.nytimes.com/2020/09/23/style/recovery-memes.html"><span class="name">The New York Times</span><span class="meta">2020</span></a></li>
+            <li><a href="https://www.buzzfeednews.com/amphtml/derekgardner/this-edgy-instagram-account-is-giving-people-affected-by"><span class="name">BuzzFeed News</span><span class="meta">Article</span></a></li>
+            <li><a href="https://melmagazine.com/en-us/story/dank-recovery-memes-and-the-quest-to-find-humor-in-addiction"><span class="name">MEL Magazine</span><span class="meta">Article</span></a></li>
+            <li><a href="https://www.dailydot.com/irl/dank-recovery-memes/"><span class="name">The Daily Dot</span><span class="meta">Article</span></a></li>
+            <li><a href="https://www.yahoo.com/lifestyle/recovery-meme-accounts-humor-shed-153538871.html"><span class="name">Yahoo</span><span class="meta">Article</span></a></li>
+            <li><a href="https://www.thefix.com/dank-recovery-memes-and-healing-power-humor"><span class="name">The Fix</span><span class="meta">Article</span></a></li>
+            <li><a href="https://reportingtexas.com/fighting-addiction-one-dank-meme-at-a-time/"><span class="name">Reporting Texas</span><span class="meta">Article</span></a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Guest appearances</h3>
+          <ul class="links">
+            <li><a href="https://dopeypodcast.podbean.com/e/dopey159a-dopeymarathonlinda-heroinoverdosing-onthe-mississippiwithjeremy-and-buzz-weed-marc-marontimfromdankrecovery-memeson-selling-organsdrugsand/"><span class="name">Dopey Podcast</span><span class="meta">Episode 159</span></a></li>
+            <li><a href="https://open.spotify.com/episode/2wEBMOQjkneJYwft8K1tZ4"><span class="name">Rehab Confidential</span><span class="meta">Spotify</span></a></li>
+            <li><a href="https://m.soundcloud.com/pullingthetrigger/episode-176-tim-kavanagh-creator-of-dank-recovery-memes"><span class="name">Pulling the Trigger</span><span class="meta">Episode 176</span></a></li>
+            <li><a href="https://youtu.be/v4PoFjQ8Orw"><span class="name">The Nameless Recovery Show</span><span class="meta">YouTube</span></a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="help">
+      <div class="help">
+        <h2>Need help getting sober?</h2>
+        <p>Email Timothy directly.</p>
+        <p style="margin-bottom:0"><a class="address" href="mailto:timothy@dankrecovery.com">timothy@dankrecovery.com</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <nav class="social" aria-label="Social accounts">
+      <a href="https://www.facebook.com/DankRecovery">Facebook</a>
+      <a href="https://www.instagram.com/dankrecovered">Instagram</a>
+      <a href="https://www.youtube.com/dankrecovery">YouTube</a>
+      <a href="https://www.tiktok.com/@dankrecovery">TikTok</a>
+      <a href="https://twitter.com/dankrecovery">X</a>
+    </nav>
+    <p class="fine">Dank Recovery LLC · St. Charles, Missouri · Est. 2015</p>
+  </footer>
+
+</div>
+</body>
+</html>
