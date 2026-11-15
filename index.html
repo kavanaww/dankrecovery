@@ -121,6 +121,42 @@
   .social a { text-decoration: none; border-bottom: 1px solid var(--rule); padding-bottom: 2px; }
   .social a:hover { color: var(--brass); border-color: var(--brass); }
   .fine { font-family: var(--mono); font-size: 12px; color: var(--ash); margin: 0; }
+
+  /* Welcome-offer popup: same flyer language as the page (ruled panel, stamped label, slab headline). */
+  button.btn { background: none; color: var(--bone); cursor: pointer; border-radius: 0; }
+  button.btn.primary { background: var(--bone); color: var(--ink); }
+  button.btn.primary:hover { background: var(--brass); border-color: var(--brass); color: var(--ink); }
+  button.btn[disabled] { opacity: .6; cursor: default; }
+  dialog.offer {
+    width: min(92vw, 440px); padding: 0; border: 2px solid var(--bone);
+    background: var(--panel); color: var(--bone);
+  }
+  dialog.offer::backdrop { background: rgba(8, 7, 6, .8); }
+  .offer-body { position: relative; padding: 30px 22px 24px; }
+  .offer-close {
+    position: absolute; top: 4px; right: 4px; width: 44px; height: 44px;
+    background: none; border: 0; color: var(--ash); cursor: pointer;
+    font: 500 24px/1 var(--mono);
+  }
+  .offer-close:hover { color: var(--bone); }
+  .offer h2 { font-size: clamp(30px, 9vw, 40px); text-transform: uppercase; margin: 0 0 10px; }
+  .offer h2:focus { outline: none; }
+  .offer p { margin: 0 0 16px; }
+  .offer form { display: grid; gap: 10px; }
+  .offer label { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); }
+  .offer input[type="email"] {
+    width: 100%; font: 16px var(--body); padding: 13px 12px; border-radius: 0;
+    background: var(--ink); color: var(--bone); border: 1px solid var(--ash);
+  }
+  .offer input[type="email"]:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .offer .btn { width: 100%; text-align: center; }
+  .offer .fine { margin: 14px 0 0; }
+  .offer .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .code {
+    font-family: var(--mono); font-size: 26px; letter-spacing: .16em; text-align: center;
+    border: 2px dashed var(--brass); color: var(--brass); padding: 14px 10px;
+    -webkit-user-select: all; user-select: all;
+  }
 </style>
 </head>
 <body>
@@ -155,7 +191,10 @@
       <p class="label">Shop</p>
       <h2>Shirts for people who get the joke</h2>
       <p>The jokes you already send your sponsor, printed on shirts. Made to order and shipped to your door.</p>
-      <a class="btn" href="https://shop.dankrecovery.com/">Go to the shop</a>
+      <div class="actions">
+        <a class="btn" href="https://shop.dankrecovery.com/">Go to the shop</a>
+        <button class="btn" type="button" data-offer-open hidden>First order? 10% off</button>
+      </div>
     </section>
 
     <section id="podcast">
@@ -221,5 +260,121 @@
   </footer>
 
 </div>
+
+<dialog class="offer" id="offer" aria-labelledby="offer-title">
+  <div class="offer-body">
+    <button class="offer-close" type="button" data-offer-close aria-label="Close">&times;</button>
+
+    <div id="offer-ask">
+      <p class="label">First order</p>
+      <h2 id="offer-title" tabindex="-1" autofocus>10% off your first order</h2>
+      <p>Drop your email and the code is yours. You'll also get a Dank Recovery email now and then.</p>
+      <form id="offer-form" novalidate>
+        <label for="offer-email">Email</label>
+        <input id="offer-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+        <div class="hp" aria-hidden="true"><label>Leave this empty <input type="text" name="_honey" tabindex="-1" autocomplete="off"></label></div>
+        <p class="fine" id="offer-error" role="alert" hidden>Enter a valid email address to get the code.</p>
+        <button class="btn primary" type="submit">Get my code</button>
+      </form>
+      <p class="fine">One use per customer. Ask anytime and you're off the list.</p>
+    </div>
+
+    <div id="offer-done" hidden>
+      <p class="label">You're in</p>
+      <h2 id="offer-done-title" tabindex="-1">Here's your code</h2>
+      <p class="code">WELCOME10</p>
+      <a class="btn primary" href="https://shop.dankrecovery.com/promo/WELCOME10">Shop with 10% off</a>
+      <p class="fine">That button applies it for you. Or type the code at checkout.</p>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  // Where signups are sent: a Google Apps Script web app that adds a row to the "Dank Recovery Email Signups" sheet.
+  var ENDPOINT = 'https://script.google.com/macros/s/AKfycbyEt3vbVzJD7ltwRnEnwiYEEIGz453PrwWQ8f9dHvfg3XHEx8GCQePpcfzzDBb7BaFuDw/exec';
+  var KEY = 'dr_offer';
+  var SNOOZE_MS = 14 * 24 * 60 * 60 * 1000; // after a dismissal, stay quiet for two weeks
+
+  var dlg = document.getElementById('offer');
+  if (!dlg || typeof dlg.showModal !== 'function') return;
+
+  var ask = document.getElementById('offer-ask');
+  var done = document.getElementById('offer-done');
+  var form = document.getElementById('offer-form');
+  var email = document.getElementById('offer-email');
+  var error = document.getElementById('offer-error');
+  var submit = form.querySelector('button[type="submit"]');
+
+  function read() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+  function write(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+
+  function showCode() {
+    ask.hidden = true;
+    done.hidden = false;
+    document.getElementById('offer-done-title').focus();
+  }
+
+  function open(auto) {
+    if (dlg.open) return;
+    var s = read();
+    if (auto && (s.joined || (s.dismissed && Date.now() - s.dismissed < SNOOZE_MS))) return;
+    dlg.showModal();
+    if (s.joined) showCode();
+  }
+
+  dlg.addEventListener('close', function () {
+    var s = read();
+    if (!s.joined) { s.dismissed = Date.now(); write(s); }
+  });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+  dlg.querySelector('[data-offer-close]').addEventListener('click', function () { dlg.close(); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-offer-open]'), function (el) {
+    el.hidden = false;
+    el.addEventListener('click', function () { open(false); });
+  });
+
+  // Auto-open once the visitor has settled in: 8 seconds, or a third of the way down the page.
+  var timer = setTimeout(function () { open(true); }, 8000);
+  function onScroll() {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    if (max > 0 && window.scrollY / max > 0.33) {
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(timer);
+      open(true);
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var value = email.value.trim();
+    if (!value || !email.checkValidity()) {
+      error.hidden = false;
+      email.setAttribute('aria-invalid', 'true');
+      email.focus();
+      return;
+    }
+    error.hidden = true;
+    email.removeAttribute('aria-invalid');
+    submit.disabled = true;
+    submit.textContent = 'Sending…';
+
+    function finish() {
+      var s = read(); s.joined = true; write(s);
+      showCode();
+    }
+
+    // Form-encoded with no-cors: Apps Script accepts it without a preflight. The reply can't be read, and isn't needed.
+    var body = new URLSearchParams();
+    body.set('email', value);
+    body.set('source', 'welcome-popup');
+    body.set('_honey', form.elements['_honey'].value);
+    fetch(ENDPOINT, { method: 'POST', mode: 'no-cors', body: body })
+      .then(finish, finish); // the visitor kept their side of the deal, so they get the code either way
+  });
+})();
+</script>
 </body>
 </html>
