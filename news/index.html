@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/logo.jpg">
+<link rel="alternate" type="application/rss+xml" title="Dank Recovery News" href="/news/feed.xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/news/news.css">
+<title>Dank Recovery News</title>
+<meta name="description" content="Recovery news and trends, and what's happening in the fellowship worldwide.">
+<link rel="canonical" href="https://dankrecovery.com/news/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Dank Recovery News">
+<meta property="og:title" content="Dank Recovery News">
+<meta property="og:description" content="Recovery news and trends, and what's happening in the fellowship worldwide.">
+<meta property="og:url" content="https://dankrecovery.com/news/">
+<meta property="og:image" content="https://dankrecovery.com/news/card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@dankrecovery">
+<meta name="twitter:image" content="https://dankrecovery.com/news/card.png">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/" aria-label="Dank Recovery home">
+      <img class="seal" src="/logo.jpg" width="52" height="52" alt="Dank Recovery seal">
+      <span><span class="brand-name">DANK RECOVERY</span><br><span class="brand-est">NEWS</span></span>
+    </a>
+    <nav class="top-nav" aria-label="Sections">
+      <a href="/news/" aria-current="page">News</a>
+      <a href="https://shop.dankrecovery.com/">Shop</a>
+      <a href="/#podcast">Podcast</a>
+    </nav>
+  </header>
+  <main>
+    <div class="masthead">
+      <p class="label">Est. 2015</p>
+      <h1>Dank Recovery News</h1>
+      <p>Recovery news and trends, and what's happening in the fellowship worldwide.</p>
+    </div>
+    <section aria-label="Latest stories">
+      <p class="empty">First stories coming soon.</p>
+    </section>
+    <aside class="signup" aria-labelledby="signup-title">
+      <h2 id="signup-title">Get the news by email</h2>
+      <p>The week in recovery, sent to your inbox. No spam, and you can leave anytime.</p>
+      <form id="signup" novalidate>
+        <label class="hp" aria-hidden="true">Leave this empty <input type="text" name="_honey" tabindex="-1" autocomplete="off"></label>
+        <input type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@example.com" aria-label="Email" required>
+        <button class="btn primary" type="submit">Sign up</button>
+      </form>
+      <p class="msg" id="signup-msg" role="status" hidden></p>
+    </aside>
+    <script>
+    (function () {
+      var f = document.getElementById('signup'), msg = document.getElementById('signup-msg');
+      if (!f) return;
+      f.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var em = f.elements.email;
+        if (!em.value.trim() || !em.checkValidity()) { msg.hidden = false; msg.textContent = 'Enter a valid email address.'; em.focus(); return; }
+        var b = new URLSearchParams();
+        b.set('email', em.value.trim()); b.set('source', 'news'); b.set('_honey', f.elements._honey.value);
+        f.querySelector('button').disabled = true;
+        function done() { f.hidden = true; msg.hidden = false; msg.textContent = "You're on the list."; }
+        fetch('https://script.google.com/macros/s/AKfycbyEt3vbVzJD7ltwRnEnwiYEEIGz453PrwWQ8f9dHvfg3XHEx8GCQePpcfzzDBb7BaFuDw/exec', { method: 'POST', mode: 'no-cors', body: b }).then(done, done);
+      });
+    })();
+    </script>
+  </main>
+  <footer>
+    <nav class="foot-links" aria-label="More">
+      <a href="/news/">All news</a>
+      <a href="/news/ethics/">Ethics &amp; corrections</a>
+      <a href="/news/feed.xml">RSS</a>
+      <a href="https://www.facebook.com/DankRecovery">Facebook</a>
+      <a href="https://twitter.com/dankrecovery">X</a>
+      <a href="mailto:timothy@dankrecovery.com?subject=News%20tip">Send a tip</a>
+    </nav>
+    <p class="fine">Dank Recovery News · Dank Recovery LLC · St. Charles, Missouri</p>
+  </footer>
+</div>
+</body>
+</html>
