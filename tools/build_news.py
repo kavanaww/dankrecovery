@@ -37,7 +37,7 @@ OUT = ROOT / "news"
 FONTS = Path(__file__).resolve().parent / "fonts"
 SITE = "https://dankrecovery.com"
 X_HANDLE = "@dankrecovery"
-DEFAULT_AUTHOR = "Timothy Kavanagh"
+DEFAULT_AUTHOR = "Moose Kavanagh"
 SIGNUP_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEt3vbVzJD7ltwRnEnwiYEEIGz453PrwWQ8f9dHvfg3XHEx8GCQePpcfzzDBb7BaFuDw/exec"
 
 INK, BONE, ASH, RULE, BRASS = "#0d0c0b", "#ece4d2", "#a39c8c", "#37322b", "#c9a24a"
@@ -244,7 +244,7 @@ def article_page(m):
   {header('news')}
   <main>
     <article class="story">
-      <p class="label"><a href="/news/">Dank Recovery News</a></p>
+      <p class="label"><a href="/news/">Dank Recovery News</a>{' · ' + e(m['label']) if m.get('label') else ''}</p>
       <h1>{e(title)}</h1>
       <p class="dek">{e(dek)}</p>
       <p class="byline"><span>By <b>{e(m['author'])}</b></span><time datetime="{iso}">{nice_date(m['date_obj'])}</time></p>
