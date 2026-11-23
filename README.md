@@ -10,5 +10,6 @@ Source for dankrecovery.com (GitHub Pages).
 
 Stories live in `news-src/<slug>.md` (title, dek, date, author header, then Markdown).
 Run `python3 tools/build_news.py` to build each article page, its share card for X and Facebook,
-the `/news/` front page and `feed.xml`. Needs `pip install markdown pillow`.
+the `/news/` front page, `feed.xml`, `sitemap.xml` and `news-sitemap.xml` (the one Google News reads;
+it only lists stories from the last 2 days, so rebuild whenever you publish). Needs `pip install markdown pillow`.
 Name a file `_something.md` to keep it as a draft.

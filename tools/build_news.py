@@ -7,8 +7,10 @@ Write each story as news-src/<slug>.md:
     title: Headline goes here
     dek: One-sentence summary shown under the headline and in share previews.
     date: 2026-11-22
+    time: 09:30   (optional, Central time the story went up; Google likes an exact time)
     author: Timothy Kavanagh
     updated: optional note shown at the top, e.g. a correction
+    modified: optional date of the last real change, e.g. 2026-11-25
     ---
     Story body in Markdown.
 
@@ -17,7 +19,9 @@ Then run:  python3 tools/build_news.py
 It writes, for every story:
   news/<slug>/index.html   the article page, with X and Facebook share tags
   news/<slug>/card.png     the 1200x630 image X and Facebook show in the preview
-and rebuilds news/index.html (newest first) and news/feed.xml (RSS).
+and rebuilds news/index.html (newest first), news/feed.xml (RSS),
+sitemap.xml (every page) and news-sitemap.xml (stories from the last 2 days,
+which is what Google News reads).
 Files whose name starts with "_" are skipped (drafts).
 """
 import datetime as dt
@@ -27,6 +31,7 @@ import re
 import sys
 from email.utils import format_datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import markdown
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -38,6 +43,10 @@ FONTS = Path(__file__).resolve().parent / "fonts"
 SITE = "https://dankrecovery.com"
 X_HANDLE = "@dankrecovery"
 DEFAULT_AUTHOR = "Timothy Kavanagh"
+AUTHOR_URL = f"{SITE}/news/about/#timothy-kavanagh"
+PUBLICATION = "Dank Recovery News"
+TZ = ZoneInfo("America/Chicago")
+NEWS_SITEMAP_DAYS = 2
 SIGNUP_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEt3vbVzJD7ltwRnEnwiYEEIGz453PrwWQ8f9dHvfg3XHEx8GCQePpcfzzDBb7BaFuDw/exec"
 
 INK, BONE, ASH, RULE, BRASS = "#0d0c0b", "#ece4d2", "#a39c8c", "#37322b", "#c9a24a"
@@ -62,6 +71,22 @@ def parse(path):
         meta["date_obj"] = dt.date.fromisoformat(meta["date"])
     except ValueError:
         sys.exit(f"{path.name}: date must look like 2026-11-22")
+    # exact publish time (Central) if given; otherwise date only
+    meta["dt"] = None
+    meta["iso"] = meta["date_obj"].isoformat()
+    if meta.get("time"):
+        try:
+            t = dt.time.fromisoformat(meta["time"])
+        except ValueError:
+            sys.exit(f"{path.name}: time must look like 09:30")
+        meta["dt"] = dt.datetime.combine(meta["date_obj"], t, TZ)
+        meta["iso"] = meta["dt"].isoformat(timespec="seconds")
+    meta["modified_iso"] = None
+    if meta.get("modified"):
+        try:
+            meta["modified_iso"] = dt.date.fromisoformat(meta["modified"]).isoformat()
+        except ValueError:
+            sys.exit(f"{path.name}: modified must look like 2026-11-25")
     meta["slug"] = path.stem
     meta["author"] = meta.get("author") or DEFAULT_AUTHOR
     meta["body_html"] = markdown.markdown(m.group(2), extensions=["extra", "smarty"])
@@ -151,6 +176,7 @@ def header(current):
 FOOTER = """<footer>
     <nav class="foot-links" aria-label="More">
       <a href="/news/">All news</a>
+      <a href="/news/about/">About</a>
       <a href="/news/ethics/">Ethics &amp; corrections</a>
       <a href="/news/feed.xml">RSS</a>
       <a href="https://www.facebook.com/DankRecovery">Facebook</a>
@@ -201,17 +227,25 @@ def article_page(m):
     from urllib.parse import quote
     url, title, dek = m["url"], m["title"], m["dek"]
     card = f"{url}card.png"
-    iso = m["date_obj"].isoformat()
+    iso = m["iso"]
+    is_staff = m["author"] == DEFAULT_AUTHOR
+    author_ld = {"@type": "Person", "name": m["author"]}
+    if is_staff:
+        author_ld["url"] = AUTHOR_URL
+    byline = f'<a href="/news/about/#timothy-kavanagh"><b>{e(m["author"])}</b></a>' if is_staff else f'<b>{e(m["author"])}</b>'
     x_share = f"https://twitter.com/intent/tweet?text={quote(title)}&url={quote(url)}&via=dankrecovery"
     fb_share = f"https://www.facebook.com/sharer/sharer.php?u={quote(url)}"
     ld = {
         "@context": "https://schema.org", "@type": "NewsArticle",
         "headline": title, "description": dek, "image": [card],
-        "datePublished": iso, "author": {"@type": "Person", "name": m["author"]},
-        "publisher": {"@type": "Organization", "name": "Dank Recovery News",
-                      "logo": {"@type": "ImageObject", "url": f"{SITE}/logo.jpg"}},
+        "datePublished": iso, "dateModified": m["modified_iso"] or iso,
+        "author": author_ld,
+        "publisher": {"@type": "NewsMediaOrganization", "name": PUBLICATION, "url": f"{SITE}/news/",
+                      "logo": {"@type": "ImageObject", "url": f"{SITE}/logo.jpg"},
+                      "publishingPrinciples": f"{SITE}/news/ethics/"},
         "mainEntityOfPage": url,
     }
+    mod_tag = f'\n<meta property="article:modified_time" content="{m["modified_iso"]}">' if m["modified_iso"] else ""
     updated = f'<p class="updated">{e(m["updated"])}</p>' if m.get("updated") else ""
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -230,7 +264,7 @@ def article_page(m):
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="{e(title)}">
-<meta property="article:published_time" content="{iso}">
+<meta property="article:published_time" content="{iso}">{mod_tag}
 <meta property="article:author" content="{e(m['author'])}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="{X_HANDLE}">
@@ -247,7 +281,7 @@ def article_page(m):
       <p class="label"><a href="/news/">Dank Recovery News</a></p>
       <h1>{e(title)}</h1>
       <p class="dek">{e(dek)}</p>
-      <p class="byline"><span>By <b>{e(m['author'])}</b></span><time datetime="{iso}">{nice_date(m['date_obj'])}</time></p>
+      <p class="byline"><span>By {byline}</span><time datetime="{iso}">{nice_date(m['date_obj'])}</time></p>
       {updated}
       <div class="story-body">
 {m['body_html']}
@@ -328,7 +362,7 @@ def index_page(stories):
 def feed(stories):
     items = []
     for s in stories[:30]:
-        pub = format_datetime(dt.datetime.combine(s["date_obj"], dt.time(12), dt.timezone.utc))
+        pub = format_datetime(s["dt"] or dt.datetime.combine(s["date_obj"], dt.time(12), dt.timezone.utc))
         items.append(f"""  <item>
     <title>{e(s['title'])}</title>
     <link>{s['url']}</link>
@@ -349,9 +383,52 @@ def feed(stories):
 """
 
 
+def sitemap(stories):
+    """Every page on the site, for regular Google Search."""
+    pages = [(f"{SITE}/", None), (f"{SITE}/news/", stories[0]["iso"] if stories else None),
+             (f"{SITE}/news/about/", None), (f"{SITE}/news/ethics/", None)]
+    pages += [(s["url"], s["modified_iso"] or s["iso"]) for s in stories]
+    rows = []
+    for loc, mod in pages:
+        lastmod = f"<lastmod>{mod}</lastmod>" if mod else ""
+        rows.append(f"  <url><loc>{loc}</loc>{lastmod}</url>")
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{chr(10).join(rows)}
+</urlset>
+"""
+
+
+def news_sitemap(stories, today=None):
+    """Google News sitemap: only stories from the last NEWS_SITEMAP_DAYS days."""
+    today = today or dt.datetime.now(TZ).date()
+    cutoff = today - dt.timedelta(days=NEWS_SITEMAP_DAYS)
+    rows = []
+    for s in stories:
+        if not (cutoff <= s["date_obj"] <= today):
+            continue
+        rows.append(f"""  <url>
+    <loc>{s['url']}</loc>
+    <news:news>
+      <news:publication>
+        <news:name>{e(PUBLICATION)}</news:name>
+        <news:language>en</news:language>
+      </news:publication>
+      <news:publication_date>{s['iso']}</news:publication_date>
+      <news:title>{e(s['title'])}</news:title>
+    </news:news>
+  </url>""")
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+{chr(10).join(rows)}
+</urlset>
+""", len(rows)
+
+
 def main():
     stories = [parse(p) for p in sorted(SRC.glob("*.md")) if not p.name.startswith("_")]
-    stories.sort(key=lambda s: s["date_obj"], reverse=True)
+    stories.sort(key=lambda s: (s["date_obj"], s.get("time") or ""), reverse=True)
     for s in stories:
         d = OUT / s["slug"]
         d.mkdir(parents=True, exist_ok=True)
@@ -361,7 +438,10 @@ def main():
     make_card({"title": "Recovery news and what's happening in the fellowship worldwide"}, OUT / "card.png")
     (OUT / "index.html").write_text(index_page(stories), encoding="utf-8")
     (OUT / "feed.xml").write_text(feed(stories), encoding="utf-8")
-    print(f"index + feed: {len(stories)} stories")
+    (ROOT / "sitemap.xml").write_text(sitemap(stories), encoding="utf-8")
+    ns, fresh = news_sitemap(stories)
+    (ROOT / "news-sitemap.xml").write_text(ns, encoding="utf-8")
+    print(f"index + feed + sitemaps: {len(stories)} stories, {fresh} in the Google News sitemap")
 
 
 if __name__ == "__main__":
