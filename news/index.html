@@ -10,12 +10,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/news/news.css">
 <title>Dank Recovery News</title>
-<meta name="description" content="Recovery news and trends, and what's happening in the fellowship worldwide.">
+<meta name="description" content="Recovery news and trends, and what&#x27;s happening in the fellowship worldwide.">
 <link rel="canonical" href="https://dankrecovery.com/news/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Dank Recovery News">
 <meta property="og:title" content="Dank Recovery News">
-<meta property="og:description" content="Recovery news and trends, and what's happening in the fellowship worldwide.">
+<meta property="og:description" content="Recovery news and trends, and what&#x27;s happening in the fellowship worldwide.">
 <meta property="og:url" content="https://dankrecovery.com/news/">
 <meta property="og:image" content="https://dankrecovery.com/news/card.png">
 <meta property="og:image:width" content="1200">
@@ -26,27 +26,28 @@
 </head>
 <body>
 <div class="wrap">
-  <header class="top">
-    <a class="brand" href="/" aria-label="Dank Recovery home">
-      <img class="seal" src="/logo.jpg" width="52" height="52" alt="Dank Recovery seal">
-      <span><span class="brand-name">DANK RECOVERY</span><br><span class="brand-est">NEWS</span></span>
+  <header class="plate">
+    <div class="plate-top">
+      <a href="/">dankrecovery.com</a>
+      <a class="plate-sub" href="#signup-title">Get the newsletter</a>
+    </div>
+    <a class="plate-name" href="/news/" aria-label="Dank Recovery News front page">
+      <img class="seal" src="/logo.jpg" width="56" height="56" alt="">
+      <span>Dank Recovery <b>News</b></span>
     </a>
-    <nav class="top-nav" aria-label="Sections">
-      <a href="/news/" aria-current="page">News</a>
-      <a href="https://shop.dankrecovery.com/">Shop</a>
-      <a href="/#podcast">Podcast</a>
+    <nav class="sections" aria-label="Sections">
+      <a href="/news/" aria-current="page">Latest</a>
+      <a href="/news/about/">About</a>
+      <a href="/news/ethics/">Ethics</a>
     </nav>
   </header>
-  <main>
-    <div class="masthead">
-      <p class="label">Est. 2015</p>
-      <h1>Dank Recovery News</h1>
-      <p>Recovery news and trends, and what's happening in the fellowship worldwide.</p>
-    </div>
-    <section aria-label="Latest stories">
+  <main class="front">
+    <section class="front-main" aria-label="Latest stories">
+      <h1 class="vh">Dank Recovery News</h1>
       <p class="empty">First stories coming soon.</p>
     </section>
-    <aside class="signup" aria-labelledby="signup-title">
+    <div class="rail">
+      <aside class="signup" aria-labelledby="signup-title">
       <h2 id="signup-title">Get the news by email</h2>
       <p>The week in recovery, sent to your inbox. No spam, and you can leave anytime.</p>
       <form id="signup" novalidate>
@@ -55,6 +56,7 @@
         <button class="btn primary" type="submit">Sign up</button>
       </form>
       <p class="msg" id="signup-msg" role="status" hidden></p>
+      <p class="tiny">See our <a href="/news/privacy/">privacy policy</a>.</p>
     </aside>
     <script>
     (function () {
@@ -72,18 +74,29 @@
       });
     })();
     </script>
+      <div class="rail-box">
+        <h2 class="rail-title">About this newsroom</h2>
+        <p>Recovery news and trends, and what&#x27;s happening in the fellowship worldwide. Reported and edited by Timothy Kavanagh.</p>
+        <p><a href="/news/about/">Who we are</a> · <a href="/news/ethics/">Our standards</a></p>
+      </div>
+      <div class="rail-box">
+        <h2 class="rail-title">Got a tip?</h2>
+        <p>Know something we should cover? <a href="mailto:timothy@dankrecovery.com?subject=News%20tip">Email the newsroom</a>.</p>
+      </div>
+    </div>
   </main>
   <footer>
     <nav class="foot-links" aria-label="More">
       <a href="/news/">All news</a>
       <a href="/news/about/">About</a>
       <a href="/news/ethics/">Ethics &amp; corrections</a>
+      <a href="/news/privacy/">Privacy</a>
       <a href="/news/feed.xml">RSS</a>
       <a href="https://www.facebook.com/DankRecovery">Facebook</a>
       <a href="https://twitter.com/dankrecovery">X</a>
       <a href="mailto:timothy@dankrecovery.com?subject=News%20tip">Send a tip</a>
     </nav>
-    <p class="fine">Dank Recovery News · Dank Recovery LLC · St. Charles, Missouri</p>
+    <p class="fine">&copy; 2026 Dank Recovery LLC · St. Charles, Missouri</p>
   </footer>
 </div>
 </body>

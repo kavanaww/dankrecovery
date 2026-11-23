@@ -8,6 +8,7 @@ Write each story as news-src/<slug>.md:
     dek: One-sentence summary shown under the headline and in share previews.
     date: 2026-11-22
     time: 09:30   (optional, Central time the story went up; Google likes an exact time)
+    type: news    (optional: news, opinion, podcast or sponsored; default is news)
     author: Timothy Kavanagh
     updated: optional note shown at the top, e.g. a correction
     modified: optional date of the last real change, e.g. 2026-11-25
@@ -19,9 +20,12 @@ Then run:  python3 tools/build_news.py
 It writes, for every story:
   news/<slug>/index.html   the article page, with X and Facebook share tags
   news/<slug>/card.png     the 1200x630 image X and Facebook show in the preview
-and rebuilds news/index.html (newest first), news/feed.xml (RSS),
+and rebuilds the news front page (newest first), the Opinion and Podcasts
+section pages (only when they have stories), news/feed.xml (RSS),
 sitemap.xml (every page) and news-sitemap.xml (stories from the last 2 days,
 which is what Google News reads).
+
+The About, Ethics and Privacy pages are built from news-src/pages/<slug>.md.
 Files whose name starts with "_" are skipped (drafts).
 """
 import datetime as dt
@@ -31,6 +35,7 @@ import re
 import sys
 from email.utils import format_datetime
 from pathlib import Path
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import markdown
@@ -38,23 +43,38 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "news-src"
+PAGES = SRC / "pages"
 OUT = ROOT / "news"
 FONTS = Path(__file__).resolve().parent / "fonts"
 SITE = "https://dankrecovery.com"
 X_HANDLE = "@dankrecovery"
 DEFAULT_AUTHOR = "Timothy Kavanagh"
 AUTHOR_URL = f"{SITE}/news/about/#timothy-kavanagh"
+AUTHOR_BLURB = "Timothy Kavanagh is the editor of Dank Recovery News. He has worked in addiction recovery since 2013."
 PUBLICATION = "Dank Recovery News"
+TAGLINE = "Recovery news and trends, and what's happening in the fellowship worldwide."
 TZ = ZoneInfo("America/Chicago")
 NEWS_SITEMAP_DAYS = 2
 SIGNUP_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEt3vbVzJD7ltwRnEnwiYEEIGz453PrwWQ8f9dHvfg3XHEx8GCQePpcfzzDBb7BaFuDw/exec"
+
+# type: (label on the story, section page slug or None, schema.org type)
+TYPES = {
+    "news": ("News", None, "NewsArticle"),
+    "opinion": ("Opinion", "opinion", "OpinionNewsArticle"),
+    "podcast": ("Podcasts", "podcasts", "NewsArticle"),
+    "sponsored": ("Sponsored", None, "AdvertiserContentArticle"),
+}
+SECTION_BLURB = {
+    "opinion": "Opinion pieces. These are the writer's views, not news reports.",
+    "podcasts": "What happened on the recovery podcasts worth your time.",
+}
 
 INK, BONE, ASH, RULE, BRASS = "#0d0c0b", "#ece4d2", "#a39c8c", "#37322b", "#c9a24a"
 
 e = html.escape
 
 
-def parse(path):
+def split_header(path):
     text = path.read_text(encoding="utf-8")
     m = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", text, re.S)
     if not m:
@@ -64,6 +84,15 @@ def parse(path):
         if ":" in line:
             k, v = line.split(":", 1)
             meta[k.strip().lower()] = v.strip()
+    return meta, m.group(2)
+
+
+def md(text):
+    return markdown.markdown(text, extensions=["extra", "smarty"])
+
+
+def parse(path):
+    meta, body = split_header(path)
     for k in ("title", "dek", "date"):
         if not meta.get(k):
             sys.exit(f"{path.name}: needs a '{k}:' line")
@@ -87,15 +116,28 @@ def parse(path):
             meta["modified_iso"] = dt.date.fromisoformat(meta["modified"]).isoformat()
         except ValueError:
             sys.exit(f"{path.name}: modified must look like 2026-11-25")
+    meta["type"] = (meta.get("type") or "news").lower()
+    if meta["type"] not in TYPES:
+        sys.exit(f"{path.name}: type must be one of {', '.join(TYPES)}")
+    meta["kicker"] = TYPES[meta["type"]][0]
     meta["slug"] = path.stem
     meta["author"] = meta.get("author") or DEFAULT_AUTHOR
-    meta["body_html"] = markdown.markdown(m.group(2), extensions=["extra", "smarty"])
+    meta["body_html"] = md(body)
     meta["url"] = f"{SITE}/news/{meta['slug']}/"
     return meta
 
 
 def nice_date(d):
     return d.strftime("%B %-d, %Y")
+
+
+def nice_when(s):
+    """November 23, 2026 · 9:30 a.m. CT"""
+    out = nice_date(s["date_obj"])
+    if s["dt"]:
+        ampm = "a.m." if s["dt"].hour < 12 else "p.m."
+        out += f" · {s['dt'].strftime('%-I:%M')} {ampm} CT"
+    return out
 
 
 # ---------- share card ----------
@@ -122,7 +164,10 @@ def make_card(meta, dest):
     mono = ImageFont.truetype(str(FONTS / "IBMPlexMono-Medium.ttf"), 26)
 
     # top label and rule
-    d.text((PAD, PAD - 6), "DANK RECOVERY NEWS", font=mono, fill=BRASS)
+    label = "DANK RECOVERY NEWS"
+    if meta.get("type") in ("opinion", "sponsored"):
+        label += f"  ·  {meta['kicker'].upper()}"
+    d.text((PAD, PAD - 6), label, font=mono, fill=BRASS)
     d.line([(PAD, PAD + 40), (W - PAD, PAD + 40)], fill=RULE, width=2)
 
     # headline: biggest size that fits in 4 lines
@@ -154,37 +199,51 @@ def make_card(meta, dest):
     img.save(dest, optimize=True)
 
 
-# ---------- pages ----------
+# ---------- shared page parts ----------
 
-def header(current):
+def header(current, sections):
+    """Newspaper nameplate plus the section bar. `sections` = section slugs that have stories."""
     def link(href, label, key):
         cur = ' aria-current="page"' if key == current else ""
         return f'<a href="{href}"{cur}>{label}</a>'
-    return f"""<header class="top">
-    <a class="brand" href="/" aria-label="Dank Recovery home">
-      <img class="seal" src="/logo.jpg" width="52" height="52" alt="Dank Recovery seal">
-      <span><span class="brand-name">DANK RECOVERY</span><br><span class="brand-est">NEWS</span></span>
+    nav = [link("/news/", "Latest", "latest")]
+    if "opinion" in sections:
+        nav.append(link("/news/opinion/", "Opinion", "opinion"))
+    if "podcasts" in sections:
+        nav.append(link("/news/podcasts/", "Podcasts", "podcasts"))
+    nav.append(link("/news/about/", "About", "about"))
+    nav.append(link("/news/ethics/", "Ethics", "ethics"))
+    return f"""<header class="plate">
+    <div class="plate-top">
+      <a href="/">dankrecovery.com</a>
+      <a class="plate-sub" href="#signup-title">Get the newsletter</a>
+    </div>
+    <a class="plate-name" href="/news/" aria-label="Dank Recovery News front page">
+      <img class="seal" src="/logo.jpg" width="56" height="56" alt="">
+      <span>Dank Recovery <b>News</b></span>
     </a>
-    <nav class="top-nav" aria-label="Sections">
-      {link('/news/', 'News', 'news')}
-      <a href="https://shop.dankrecovery.com/">Shop</a>
-      <a href="/#podcast">Podcast</a>
+    <nav class="sections" aria-label="Sections">
+      {(chr(10) + '      ').join(nav)}
     </nav>
   </header>"""
 
 
-FOOTER = """<footer>
+def footer():
+    year = dt.datetime.now(TZ).year
+    return f"""<footer>
     <nav class="foot-links" aria-label="More">
       <a href="/news/">All news</a>
       <a href="/news/about/">About</a>
       <a href="/news/ethics/">Ethics &amp; corrections</a>
+      <a href="/news/privacy/">Privacy</a>
       <a href="/news/feed.xml">RSS</a>
       <a href="https://www.facebook.com/DankRecovery">Facebook</a>
       <a href="https://twitter.com/dankrecovery">X</a>
       <a href="mailto:timothy@dankrecovery.com?subject=News%20tip">Send a tip</a>
     </nav>
-    <p class="fine">Dank Recovery News · Dank Recovery LLC · St. Charles, Missouri</p>
+    <p class="fine">&copy; {year} Dank Recovery LLC · St. Charles, Missouri</p>
   </footer>"""
+
 
 SIGNUP = f"""<aside class="signup" aria-labelledby="signup-title">
       <h2 id="signup-title">Get the news by email</h2>
@@ -195,6 +254,7 @@ SIGNUP = f"""<aside class="signup" aria-labelledby="signup-title">
         <button class="btn primary" type="submit">Sign up</button>
       </form>
       <p class="msg" id="signup-msg" role="status" hidden></p>
+      <p class="tiny">See our <a href="/news/privacy/">privacy policy</a>.</p>
     </aside>
     <script>
     (function () {{
@@ -223,8 +283,40 @@ HEAD_COMMON = """<meta charset="utf-8">
 <link rel="stylesheet" href="/news/news.css">"""
 
 
-def article_page(m):
-    from urllib.parse import quote
+def site_head(title, desc, url):
+    return f"""{HEAD_COMMON}
+<title>{e(title)}</title>
+<meta name="description" content="{e(desc)}">
+<link rel="canonical" href="{url}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{PUBLICATION}">
+<meta property="og:title" content="{e(title)}">
+<meta property="og:description" content="{e(desc)}">
+<meta property="og:url" content="{url}">
+<meta property="og:image" content="{SITE}/news/card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="{X_HANDLE}">
+<meta name="twitter:image" content="{SITE}/news/card.png">"""
+
+
+def kicker_html(s):
+    cls = " flag" if s["type"] in ("opinion", "sponsored") else ""
+    return f'<span class="kicker{cls}">{e(s["kicker"])}</span>'
+
+
+def story_list(stories):
+    items = "\n".join(
+        f"""        <li><a href="/news/{s['slug']}/"><span class="meta">{kicker_html(s)}<span class="when">{nice_date(s['date_obj'])}</span></span>
+          <span class="title">{e(s['title'])}</span><span class="sub">{e(s['dek'])}</span></a></li>"""
+        for s in stories)
+    return f'<ul class="stories">\n{items}\n      </ul>'
+
+
+# ---------- pages ----------
+
+def article_page(m, stories, sections):
     url, title, dek = m["url"], m["title"], m["dek"]
     card = f"{url}card.png"
     iso = m["iso"]
@@ -236,9 +328,10 @@ def article_page(m):
     x_share = f"https://twitter.com/intent/tweet?text={quote(title)}&url={quote(url)}&via=dankrecovery"
     fb_share = f"https://www.facebook.com/sharer/sharer.php?u={quote(url)}"
     ld = {
-        "@context": "https://schema.org", "@type": "NewsArticle",
+        "@context": "https://schema.org", "@type": TYPES[m["type"]][2],
         "headline": title, "description": dek, "image": [card],
         "datePublished": iso, "dateModified": m["modified_iso"] or iso,
+        "articleSection": m["kicker"],
         "author": author_ld,
         "publisher": {"@type": "NewsMediaOrganization", "name": PUBLICATION, "url": f"{SITE}/news/",
                       "logo": {"@type": "ImageObject", "url": f"{SITE}/logo.jpg"},
@@ -247,6 +340,22 @@ def article_page(m):
     }
     mod_tag = f'\n<meta property="article:modified_time" content="{m["modified_iso"]}">' if m["modified_iso"] else ""
     updated = f'<p class="updated">{e(m["updated"])}</p>' if m.get("updated") else ""
+    note = ""
+    if m["type"] == "opinion":
+        note = '<p class="updated">Opinion. This piece is the writer\'s view, not a news report.</p>'
+    elif m["type"] == "sponsored":
+        note = '<p class="updated">Sponsored content. This was paid for and is not a news report.</p>'
+    sec = TYPES[m["type"]][1]
+    current = sec if sec in sections else "latest"
+    crumb = f'<a href="/news/{sec}/">{e(m["kicker"])}</a>' if sec else e(m["kicker"])
+    author_box = f"""<div class="author-box">
+      <p>{e(AUTHOR_BLURB)} <a href="/news/about/">About the newsroom</a> · <a href="mailto:timothy@dankrecovery.com?subject=Correction">Report an error</a></p>
+    </div>""" if is_staff else ""
+    others = [s for s in stories if s["slug"] != m["slug"]][:3]
+    more = f"""<section class="more" aria-label="More stories">
+      <h2 class="rail-title">More from Dank Recovery News</h2>
+      {story_list(others)}
+    </section>""" if others else ""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -256,7 +365,7 @@ def article_page(m):
 <meta name="author" content="{e(m['author'])}">
 <link rel="canonical" href="{url}">
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="Dank Recovery News">
+<meta property="og:site_name" content="{PUBLICATION}">
 <meta property="og:title" content="{e(title)}">
 <meta property="og:description" content="{e(dek)}">
 <meta property="og:url" content="{url}">
@@ -266,6 +375,7 @@ def article_page(m):
 <meta property="og:image:alt" content="{e(title)}">
 <meta property="article:published_time" content="{iso}">{mod_tag}
 <meta property="article:author" content="{e(m['author'])}">
+<meta property="article:section" content="{e(m['kicker'])}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="{X_HANDLE}">
 <meta name="twitter:title" content="{e(title)}">
@@ -275,17 +385,19 @@ def article_page(m):
 </head>
 <body>
 <div class="wrap">
-  {header('news')}
-  <main>
+  {header(current, sections)}
+  <main class="col">
     <article class="story">
-      <p class="label"><a href="/news/">Dank Recovery News</a></p>
+      <p class="label{' flag' if m['type'] in ('opinion', 'sponsored') else ''}">{crumb}</p>
       <h1>{e(title)}</h1>
       <p class="dek">{e(dek)}</p>
-      <p class="byline"><span>By {byline}</span><time datetime="{iso}">{nice_date(m['date_obj'])}</time></p>
+      <p class="byline"><span>By {byline}</span><time datetime="{iso}">{nice_when(m)}</time></p>
+      {note}
       {updated}
       <div class="story-body">
 {m['body_html']}
       </div>
+      {author_box}
     </article>
     <div class="share" aria-label="Share this story">
       <a class="btn" href="{e(x_share)}" target="_blank" rel="noopener">Post on X</a>
@@ -301,58 +413,100 @@ def article_page(m):
     }});
     </script>
     {SIGNUP}
+    {more}
   </main>
-  {FOOTER}
+  {footer()}
 </div>
 </body>
 </html>
 """
 
 
-def index_page(stories):
+def front_page(stories, sections, section=None):
+    """The news front page, or one section's page when `section` is given."""
+    if section:
+        label = next(v[0] for v in TYPES.values() if v[1] == section)
+        title, desc, url = f"{label} | {PUBLICATION}", SECTION_BLURB[section], f"{SITE}/news/{section}/"
+        heading = f'<div class="section-head"><h1>{label}</h1><p>{e(desc)}</p></div>'
+        current = section
+    else:
+        title, desc, url, heading, current = PUBLICATION, TAGLINE, f"{SITE}/news/", f'<h1 class="vh">{PUBLICATION}</h1>', "latest"
     if stories:
-        items = "\n".join(
-            f"""        <li><a href="/news/{s['slug']}/"><span class="when">{nice_date(s['date_obj'])}</span>
-          <span class="title">{e(s['title'])}</span><span class="sub">{e(s['dek'])}</span></a></li>"""
-            for s in stories)
-        body = f'<ul class="stories">\n{items}\n      </ul>'
+        lead, rest = stories[0], stories[1:]
+        body = f"""<a class="lead" href="/news/{lead['slug']}/">
+        <span class="meta">{kicker_html(lead)}<span class="when">{nice_date(lead['date_obj'])}</span></span>
+        <span class="lead-title">{e(lead['title'])}</span>
+        <span class="lead-dek">{e(lead['dek'])}</span>
+        <span class="lead-by">By {e(lead['author'])}</span>
+      </a>"""
+        if rest:
+            body += f'\n      <h2 class="rail-title">Latest</h2>\n      {story_list(rest)}'
     else:
         body = '<p class="empty">First stories coming soon.</p>'
-    desc = "Recovery news and trends, and what's happening in the fellowship worldwide."
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
-{HEAD_COMMON}
-<title>Dank Recovery News</title>
-<meta name="description" content="{desc}">
-<link rel="canonical" href="{SITE}/news/">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Dank Recovery News">
-<meta property="og:title" content="Dank Recovery News">
-<meta property="og:description" content="{desc}">
-<meta property="og:url" content="{SITE}/news/">
-<meta property="og:image" content="{SITE}/news/card.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:site" content="{X_HANDLE}">
-<meta name="twitter:image" content="{SITE}/news/card.png">
+{site_head(title, desc, url)}
 </head>
 <body>
 <div class="wrap">
-  {header('news')}
-  <main>
-    <div class="masthead">
-      <p class="label">Est. 2015</p>
-      <h1>Dank Recovery News</h1>
-      <p>{desc}</p>
-    </div>
-    <section aria-label="Latest stories">
+  {header(current, sections)}
+  <main class="front">
+    <section class="front-main" aria-label="Latest stories">
+      {heading}
       {body}
     </section>
-    {SIGNUP}
+    <div class="rail">
+      {SIGNUP}
+      <div class="rail-box">
+        <h2 class="rail-title">About this newsroom</h2>
+        <p>{e(TAGLINE)} Reported and edited by Timothy Kavanagh.</p>
+        <p><a href="/news/about/">Who we are</a> · <a href="/news/ethics/">Our standards</a></p>
+      </div>
+      <div class="rail-box">
+        <h2 class="rail-title">Got a tip?</h2>
+        <p>Know something we should cover? <a href="mailto:timothy@dankrecovery.com?subject=News%20tip">Email the newsroom</a>.</p>
+      </div>
+    </div>
   </main>
-  {FOOTER}
+  {footer()}
+</div>
+</body>
+</html>
+"""
+
+
+def static_page(path, sections):
+    """About, Ethics, Privacy: built from news-src/pages/<slug>.md."""
+    meta, body = split_header(path)
+    for k in ("title", "description"):
+        if not meta.get(k):
+            sys.exit(f"pages/{path.name}: needs a '{k}:' line")
+    slug = path.stem
+    url = f"{SITE}/news/{slug}/"
+    extra = ""
+    if slug == "about":
+        ld = {"@context": "https://schema.org", "@type": "NewsMediaOrganization",
+              "name": PUBLICATION, "url": f"{SITE}/news/", "logo": f"{SITE}/logo.jpg",
+              "email": "timothy@dankrecovery.com",
+              "publishingPrinciples": f"{SITE}/news/ethics/", "correctionsPolicy": f"{SITE}/news/ethics/",
+              "parentOrganization": {"@type": "Organization", "name": "Dank Recovery LLC", "url": f"{SITE}/"},
+              "founder": {"@type": "Person", "name": DEFAULT_AUTHOR, "url": AUTHOR_URL},
+              "sameAs": ["https://www.facebook.com/DankRecovery", "https://twitter.com/dankrecovery"]}
+        extra = f'\n<script type="application/ld+json">{json.dumps(ld)}</script>'
+    return slug, f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+{site_head(meta['title'] + ' | ' + PUBLICATION, meta['description'], url)}{extra}
+</head>
+<body>
+<div class="wrap">
+  {header(slug, sections)}
+  <main class="col page">
+    <h1>{e(meta['title'])}</h1>
+{md(body)}
+  </main>
+  {footer()}
 </div>
 </body>
 </html>
@@ -368,6 +522,7 @@ def feed(stories):
     <link>{s['url']}</link>
     <guid>{s['url']}</guid>
     <pubDate>{pub}</pubDate>
+    <category>{e(s['kicker'])}</category>
     <description>{e(s['dek'])}</description>
   </item>""")
     return f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -375,7 +530,7 @@ def feed(stories):
 <channel>
   <title>Dank Recovery News</title>
   <link>{SITE}/news/</link>
-  <description>Recovery news and trends, and what's happening in the fellowship worldwide.</description>
+  <description>{e(TAGLINE)}</description>
   <language>en-us</language>
 {chr(10).join(items)}
 </channel>
@@ -383,10 +538,10 @@ def feed(stories):
 """
 
 
-def sitemap(stories):
+def sitemap(stories, page_slugs, sections):
     """Every page on the site, for regular Google Search."""
-    pages = [(f"{SITE}/", None), (f"{SITE}/news/", stories[0]["iso"] if stories else None),
-             (f"{SITE}/news/about/", None), (f"{SITE}/news/ethics/", None)]
+    pages = [(f"{SITE}/", None), (f"{SITE}/news/", stories[0]["iso"] if stories else None)]
+    pages += [(f"{SITE}/news/{s}/", None) for s in sorted(sections) + sorted(page_slugs)]
     pages += [(s["url"], s["modified_iso"] or s["iso"]) for s in stories]
     rows = []
     for loc, mod in pages:
@@ -400,12 +555,12 @@ def sitemap(stories):
 
 
 def news_sitemap(stories, today=None):
-    """Google News sitemap: only stories from the last NEWS_SITEMAP_DAYS days."""
+    """Google News sitemap: stories from the last NEWS_SITEMAP_DAYS days. Sponsored pieces stay out."""
     today = today or dt.datetime.now(TZ).date()
     cutoff = today - dt.timedelta(days=NEWS_SITEMAP_DAYS)
     rows = []
     for s in stories:
-        if not (cutoff <= s["date_obj"] <= today):
+        if s["type"] == "sponsored" or not (cutoff <= s["date_obj"] <= today):
             continue
         rows.append(f"""  <url>
     <loc>{s['url']}</loc>
@@ -429,19 +584,36 @@ def news_sitemap(stories, today=None):
 def main():
     stories = [parse(p) for p in sorted(SRC.glob("*.md")) if not p.name.startswith("_")]
     stories.sort(key=lambda s: (s["date_obj"], s.get("time") or ""), reverse=True)
+    page_files = [p for p in sorted(PAGES.glob("*.md")) if not p.name.startswith("_")]
+    reserved = {p.stem for p in page_files} | set(SECTION_BLURB)
+    for s in stories:
+        if s["slug"] in reserved:
+            sys.exit(f"{s['slug']}.md: that name is taken by a section or page, rename the file")
+    by_section = {sec: [s for s in stories if TYPES[s["type"]][1] == sec] for sec in SECTION_BLURB}
+    sections = {sec for sec, lst in by_section.items() if lst}
+
     for s in stories:
         d = OUT / s["slug"]
         d.mkdir(parents=True, exist_ok=True)
-        (d / "index.html").write_text(article_page(s), encoding="utf-8")
+        (d / "index.html").write_text(article_page(s, stories, sections), encoding="utf-8")
         make_card(s, d / "card.png")
         print("built", f"news/{s['slug']}/")
+    for sec in sections:
+        d = OUT / sec
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "index.html").write_text(front_page(by_section[sec], sections, sec), encoding="utf-8")
+    for p in page_files:
+        slug, page = static_page(p, sections)
+        d = OUT / slug
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "index.html").write_text(page, encoding="utf-8")
     make_card({"title": "Recovery news and what's happening in the fellowship worldwide"}, OUT / "card.png")
-    (OUT / "index.html").write_text(index_page(stories), encoding="utf-8")
+    (OUT / "index.html").write_text(front_page(stories, sections), encoding="utf-8")
     (OUT / "feed.xml").write_text(feed(stories), encoding="utf-8")
-    (ROOT / "sitemap.xml").write_text(sitemap(stories), encoding="utf-8")
+    (ROOT / "sitemap.xml").write_text(sitemap(stories, [p.stem for p in page_files], sections), encoding="utf-8")
     ns, fresh = news_sitemap(stories)
     (ROOT / "news-sitemap.xml").write_text(ns, encoding="utf-8")
-    print(f"index + feed + sitemaps: {len(stories)} stories, {fresh} in the Google News sitemap")
+    print(f"front page, {len(page_files)} pages, feed, sitemaps: {len(stories)} stories, {fresh} in the Google News sitemap")
 
 
 if __name__ == "__main__":
