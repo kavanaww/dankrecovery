@@ -100,18 +100,37 @@ def make_card(meta, dest):
     d.text((PAD, PAD - 6), "DANK RECOVERY NEWS", font=mono, fill=BRASS)
     d.line([(PAD, PAD + 40), (W - PAD, PAD + 40)], fill=RULE, width=2)
 
-    # headline: biggest size that fits in 4 lines
+    # summary line (dek), up to 3 lines, sits under the headline
     box_w, box_h = W - PAD * 2, H - PAD * 2 - 150
-    for size in range(78, 34, -2):
-        font = ImageFont.truetype(str(FONTS / "AlfaSlabOne-Regular.ttf"), size)
-        lines = wrap(d, meta["title"], font, box_w)
-        lh = int(size * 1.12)
-        if len(lines) <= 4 and lh * len(lines) <= box_h:
-            break
+    dek_font = ImageFont.truetype(str(FONTS / "IBMPlexSans.ttf"), 31)
+    dek_lh, dek_gap = 42, 32
+    dek_lines = wrap(d, meta["dek"], dek_font, box_w - 130) if meta.get("dek") else []
+    if len(dek_lines) > 3:
+        dek_lines = dek_lines[:3]
+        dek_lines[-1] = dek_lines[-1].rstrip(" ,.;:") + "…"
+
+    # headline: biggest size that fits in 4 lines and leaves room for the dek
+    def fit(room):
+        for size in range(78, 34, -2):
+            f = ImageFont.truetype(str(FONTS / "AlfaSlabOne-Regular.ttf"), size)
+            ls = wrap(d, meta["title"], f, box_w)
+            h = int(size * 1.12)
+            if len(ls) <= 4 and h * len(ls) <= room:
+                return f, ls, h
+        return None
+    dek_h = dek_gap + dek_lh * len(dek_lines) if dek_lines else 0
+    got = fit(box_h - dek_h)
+    if got is None or got[2] < 50:      # headline too long to share the card: drop the dek
+        dek_lines, got = [], fit(box_h)
+    font, lines, lh = got
     y = PAD + 72
     for ln in lines:
         d.text((PAD, y), ln, font=font, fill=BONE)
         y += lh
+    y += dek_gap - 2
+    for ln in dek_lines:
+        d.text((PAD, y), ln, font=dek_font, fill=ASH)
+        y += dek_lh
 
     # bottom rule, date, seal
     d.line([(PAD, H - PAD - 60), (W - PAD, H - PAD - 60)], fill=RULE, width=2)
