@@ -268,9 +268,9 @@
     <button class="offer-close" type="button" data-offer-close aria-label="Close">&times;</button>
 
     <div id="offer-ask">
-      <p class="label">First order</p>
+      <p class="label" id="offer-label">First order</p>
       <h2 id="offer-title" tabindex="-1" autofocus>10% off your first order</h2>
-      <p>Drop your email and the code is yours. You'll also get a Dank Recovery email now and then.</p>
+      <p id="offer-pitch">Drop your email and the code is yours. You'll also get a Dank Recovery email now and then.</p>
       <form id="offer-form" novalidate>
         <label for="offer-email">Email</label>
         <input id="offer-email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
@@ -278,14 +278,14 @@
         <p class="fine" id="offer-error" role="alert" hidden>Enter a valid email address to get the code.</p>
         <button class="btn primary" type="submit">Get my code</button>
       </form>
-      <p class="fine">One use per customer. Ask anytime and you're off the list.</p>
+      <p class="fine" id="offer-terms">One use per customer. Ask anytime and you're off the list.</p>
     </div>
 
     <div id="offer-done" hidden>
       <p class="label">You're in</p>
       <h2 id="offer-done-title" tabindex="-1">Here's your code</h2>
-      <p class="code">WELCOME10</p>
-      <a class="btn primary" href="https://shop.dankrecovery.com/promo/WELCOME10">Shop with 10% off</a>
+      <p class="code" id="offer-code">WELCOME10</p>
+      <a class="btn primary" id="offer-link" href="https://shop.dankrecovery.com/promo/WELCOME10">Shop with 10% off</a>
       <p class="fine">That button applies it for you. Or type the code at checkout.</p>
     </div>
   </div>
@@ -308,6 +308,28 @@
   var error = document.getElementById('offer-error');
   var submit = form.querySelector('button[type="submit"]');
 
+  // Black Friday sale: for these four days the popup hands out the sale code instead of the welcome code.
+  // Outside the window nothing changes, so there is nothing to undo when the sale ends.
+  var SALE = {
+    code: 'BLACKOUT15',
+    start: Date.parse('2026-11-27T00:00:00-06:00'), // Friday 12:00am Central
+    end: Date.parse('2026-12-01T00:00:00-06:00')    // Monday midnight Central
+  };
+  var onSale = Date.now() >= SALE.start && Date.now() < SALE.end;
+  if (onSale) {
+    document.getElementById('offer-label').textContent = 'Black Friday';
+    document.getElementById('offer-title').textContent = '15% off everything';
+    document.getElementById('offer-pitch').textContent = "Drop your email and the code is yours. Good through Monday night. You'll also get a Dank Recovery email now and then.";
+    document.getElementById('offer-terms').textContent = "Ends Monday at midnight Central. Ask anytime and you're off the list.";
+    document.getElementById('offer-code').textContent = SALE.code;
+    var link = document.getElementById('offer-link');
+    link.href = 'https://shop.dankrecovery.com/promo/' + SALE.code;
+    link.textContent = 'Shop with 15% off';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-offer-open]'), function (el) {
+      el.textContent = 'Black Friday: 15% off';
+    });
+  }
+
   function read() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
   function write(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
 
@@ -320,7 +342,9 @@
   function open(auto) {
     if (dlg.open) return;
     var s = read();
-    if (auto && (s.joined || (s.dismissed && Date.now() - s.dismissed < SNOOZE_MS))) return;
+    // A dismissal from before the sale doesn't count against the sale offer.
+    var snoozed = s.dismissed && Date.now() - s.dismissed < SNOOZE_MS && !(onSale && s.dismissed < SALE.start);
+    if (auto && (s.joined || snoozed)) return;
     dlg.showModal();
     if (s.joined) showCode();
   }
